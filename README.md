@@ -1,2 +1,2 @@
 # MyFaceRecognition_Backend
-The backend of
+The backend of the facial recognition system
