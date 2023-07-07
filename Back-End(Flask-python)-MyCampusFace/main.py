@@ -24,7 +24,7 @@ from skimage.io import imread, imshow, imsave
 from skimage import*
 from flask import g
 import threading
-from flask_caching import Cache
+#from flask_caching import Cache
 
 #import torch 
 #import torchvision.transforms.functional as con
@@ -85,9 +85,8 @@ def TrainImages():
         
 #API   
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
- 
+
 @app.route("/")
 def showHomePage():
     #resp = "This is home page "
@@ -207,35 +206,35 @@ def detect_faces():
     our_image.save("imagesTorecognize/"+filename)
     # input_img = imread("imagesTorecognize/"+filename)
     # image_bright = exposure.adjust_gamma(input_img, gamma=0.5,gain=1)
-    image = Image.open("imagesTorecognize/"+filename)
+    image = asarray(Image.open("imagesTorecognize/"+filename))
     
     #Start recognition
     path="ClientImages"
     imagePaths = [os.path.join(path, f) for f in os.listdir(path)] 
     for imagePath in imagePaths:
         print(imagePath) 
-        try:
-            result = DeepFace.verify(img1_path = image, img2_path = imagePath, distance_metric="euclidean_l2")
-            print(result)
-            if(result['verified']==True and result['distance'] <= 0.5):
-                Id = int(os.path.split(imagePath)[-1].split(".")[0])
-                print(str(Id))
-                connect = sqlite3.connect('mycampusface.db')
-                cursors = connect.cursor()
-                cursors.execute('''SELECT * FROM ETUDIANT WHERE id={}'''.format(Id))
-                datas = cursors.fetchall()
-                for row in datas:
-                    resp = str(row[0])+','+str(row[1])+','+str(row[2])+','+str(row[3])+','+str(row[4])+','+str(row[5])+','+str(row[6])+','+str(row[7])+','+str(row[8])
-                    with sqlite3.connect('mycampusface.db') as user:
-                        cursors = user.cursor()
-                        cursors.execute("""INSERT INTO RECONNU(ids,nom,surname,matricule,filiere,niveau,num_transaction,tranche,price,annee) VALUES (?,?,?,?,?,?,?,?,?,?)""",(str(row[0]),str(row[1]),str(row[2]),str(row[3]),str(row[4]),str(row[5]),str(row[6]),str(row[7]),str(row[8]),date.today()))
-                    user.commit()
-                    user.close()
-                break
-            else:
+        #try:
+        result = DeepFace.verify(img1_path = image, img2_path = imagePath, distance_metric="euclidean_l2")
+        print(result)
+        if(result['verified']==True and result['distance'] <= 0.5):
+            Id = int(os.path.split(imagePath)[-1].split(".")[0])
+            print(str(Id))
+            connect = sqlite3.connect('mycampusface.db')
+            cursors = connect.cursor()
+            cursors.execute('''SELECT * FROM ETUDIANT WHERE id={}'''.format(Id))
+            datas = cursors.fetchall()
+            for row in datas:
+                resp = str(row[0])+','+str(row[1])+','+str(row[2])+','+str(row[3])+','+str(row[4])+','+str(row[5])+','+str(row[6])+','+str(row[7])+','+str(row[8])
+                with sqlite3.connect('mycampusface.db') as user:
+                    cursors = user.cursor()
+                    cursors.execute("""INSERT INTO RECONNU(ids,nom,surname,matricule,filiere,niveau,num_transaction,tranche,price,annee) VALUES (?,?,?,?,?,?,?,?,?,?)""",(str(row[0]),str(row[1]),str(row[2]),str(row[3]),str(row[4]),str(row[5]),str(row[6]),str(row[7]),str(row[8]),date.today()))
+                user.commit()
+                user.close()
+            break
+        else:
                 resp = "Unknown"
-        except :
-            resp="Image with any face or image of poor quality"
+        #except :
+            #resp="Image with any face or image of poor quality"
     print (resp)    
     #Response
     return resp
@@ -282,11 +281,9 @@ def getUsers():
     #resp = "This is home page "
     resp = []
     
-    con = get_db()
-    cursor = con.cursor()
-    # Verrouille la connexion à la base de données
-    cursor.execute('BEGIN')
-    try:    
+    try:  
+        connect = sqlite3.connect('mycampusface.db')
+        cursor = connect.cursor()  
         cursor.execute("""SELECT DISTINCT ids,nom,surname,matricule,filiere,niveau,num_transaction,tranche,price,annee FROM RECONNU;""")
         data = cursor.fetchall()
         for row in data:
@@ -294,12 +291,7 @@ def getUsers():
             # print(resp)  
     except:
         resp = "empty"
-        # En cas d'erreur, annule les opérations en cours
-        con.rollback()
-        raise
-    finally:
-        # Déverrouille la connexion à la base de données
-        cursor.execute('COMMIT')
+        
     print(resp)    
     return resp  #json.dumps(data)
 
@@ -307,20 +299,7 @@ def getUsers():
 
 @app.route("/update", methods=["POST"])
 def update():
-    text = request.form["sample"]
-    # Obtenir l'adresse IP du client
-    user_ip = request.remote_addr
-    print(f'Traitement de la requête de {user_ip}')
-    # Créer un nouveau thread pour le client
-    thread = threading.Thread(target=process_request3, args=(text,))
-    thread.start()
-    resp = process_request3(text)
-    return resp
-
-
-def process_request3(texte):
-    lock.acquire()
-    resp=""
+    texte = request.form["sample"]
     text = texte.split(',')
     trans=text[2]
     try:
@@ -330,8 +309,8 @@ def process_request3(texte):
         db.commit()
         db.close()
         resp = "User informations update successfully"
-    finally:
-        lock.release()
+    except:
+       resp="impossible to update data" 
     return resp
 
  
