@@ -10,7 +10,7 @@ from PIL import Image
 from numpy import asarray
 import pandas as pd
 import csv
- 
+from flask_cors import CORS
 # import request
 from flask import request,Response
 #from flask_sqlalchemy import SQLAlchemy
@@ -86,7 +86,7 @@ def TrainImages():
 #API   
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-
+CORS(app)
  
 @app.route("/")
 def showHomePage():
@@ -161,6 +161,23 @@ def getUserId():
 lock = threading.Lock()  
         
     
+@app.route("/web/sample", methods=["POST"])
+def debugweb():
+    data = request.get_json()
+    sample = data["sample"]
+
+    text = sample.split(',')
+    try:
+        connect = sqlite3.connect('mycampusface.db')
+        cursor = connect.cursor()
+        cursor.execute("""INSERT INTO ETUDIANT(id,username,usersurname,usermatricule,userfiliere,userniveau,usertransaction,usertranche,userprice) VALUES (?,?,?,?,?,?,?,?,?)""",
+                       (text[0],text[1],text[2],text[3],text[4],text[5],text[6],text[7],text[8]))
+        connect.commit()
+        connect.close()
+    except:
+        print("error")
+        
+    return "received" 
  
 @app.route("/sample", methods=["POST"])
 def debug():
@@ -311,7 +328,7 @@ def update():
     # Obtenir l'adresse IP du client
     user_ip = request.remote_addr
     print(f'Traitement de la requête de {user_ip}')
-    # Créer un nouveau thread pour le client
+    # Créer un nouv eau thread pour le client
     thread = threading.Thread(target=process_request3, args=(text,))
     thread.start()
     resp = process_request3(text)
